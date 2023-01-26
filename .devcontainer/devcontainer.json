@@ -1,0 +1,12 @@
+{
+  "name": "Node.js",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"],
+  "settings": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "remoteUser": "node"
+}
