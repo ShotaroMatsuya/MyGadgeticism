@@ -45,4 +45,5 @@ npm run build
 # 予めbuild.jsを作成しdist直下にindex.jsをbuiodする
 # .clasp.jsonのrootDirを./distに書き換え,distフォルダにappsscript.jsonを移動
 npx clasp push
+npx clasp deploy
 ```
