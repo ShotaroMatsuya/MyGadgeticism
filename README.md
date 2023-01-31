@@ -19,6 +19,24 @@ npx clasp login
 
 # プロジェクト作成
 npx clasp create --title <タイトル>
+
+# dist/とsrc/index.tsとbuild.jsを作って開発
+```
+
+## package.json に scripts 追加
+
+```json
+{
+  // ...
+  "scripts": {
+    "build": "node build.js"
+  }
+  // ...
+}
+```
+
+```bash
+npm run build
 ```
 
 ## デプロイ
