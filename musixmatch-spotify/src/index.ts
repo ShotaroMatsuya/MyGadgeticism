@@ -1,9 +1,14 @@
-// init twitter API
+const twitter_api_key =
+  PropertiesService.getScriptProperties().getProperty('TWITTER_API_KEY');
+const twitter_secret_key =
+  PropertiesService.getScriptProperties().getProperty('TWITTER_SECRET_KEY');
 
+// init twitter API
+// @ts-ignore
 const twitter = TwitterWebService.getInstance(
-  '', //API Key
-  '' // API Secret Key
-);
+  twitter_api_key, //API Key
+  twitter_secret_key // API Secret Key
+)!;
 
 // アプリを連携認証
 function authorize() {
@@ -15,11 +20,11 @@ function reset() {
   twitter.reset();
 }
 
-function authCallback(request) {
+function authCallback(request: any) {
   return twitter.authCallback(request);
 }
 
-function postTweet(mes) {
+function postTweet(mes: string) {
   const service = twitter.getService();
   const endPointUrl = 'https://api.twitter.com/1.1/statuses/update.json';
   const response = service.fetch(endPointUrl, {
@@ -38,12 +43,19 @@ const sensitiveWordsMappingList = {
 
 // init spotify API
 
-function sendTopSongsSnipetToTwitter() {
+export function sendTopSongsSnipetToTwitter() {
   // ******************
-  // ここから下を個別に設定
-  const client_id = '';
-  const client_secret = '';
-  const authorization_code = '';
+  const client_id = PropertiesService.getScriptProperties().getProperty(
+    'SPOTIFY_API_CLIENT_ID'
+  )!;
+  const client_secret = PropertiesService.getScriptProperties().getProperty(
+    'SPOTIFY_API_CLIENT_SECRET'
+  )!;
+  const authorization_code =
+    PropertiesService.getScriptProperties().getProperty(
+      'SPOTIFY_API_AUTHORIZATION_CODE'
+    )!;
+
   const basic_authorization = Utilities.base64Encode(
     client_id + ':' + client_secret
   ); // 変更不要
@@ -89,7 +101,10 @@ function sendTopSongsSnipetToTwitter() {
   }
 }
 
-function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
+function getFirstAccessTokenToSpotify(
+  authorization_code: string,
+  basic_authorization: string
+) {
   const headers = { Authorization: 'Basic ' + basic_authorization };
   const payload = {
     grant_type: 'authorization_code',
@@ -105,7 +120,7 @@ function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
     options
   );
 
-  const parsedResponse = JSON.parse(response);
+  const parsedResponse = JSON.parse(response.toString());
   const scriptProperties = PropertiesService.getScriptProperties();
   scriptProperties.setProperties({
     access_token: parsedResponse.access_token,
@@ -114,7 +129,7 @@ function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
   return parsedResponse.access_token;
 }
 
-function refreshAccessTokenToSpotify(basic_authorization) {
+function refreshAccessTokenToSpotify(basic_authorization: string) {
   const scriptProperties = PropertiesService.getScriptProperties();
   const refresh_token = scriptProperties.getProperty('refresh_token');
 
@@ -135,7 +150,7 @@ function refreshAccessTokenToSpotify(basic_authorization) {
     options
   );
 
-  const parsedResponse = JSON.parse(response);
+  const parsedResponse = JSON.parse(response.toString());
   scriptProperties.setProperty('access_token', parsedResponse.access_token);
   // refresh_tokenは毎回発行されるとは限らない
   if (parsedResponse.refresh_token) {
@@ -145,7 +160,10 @@ function refreshAccessTokenToSpotify(basic_authorization) {
 }
 
 // 再生数上位5曲の曲情報の取得
-function getFavoriteSnippets(access_token, basic_authorization) {
+function getFavoriteSnippets(
+  access_token: string,
+  basic_authorization: string
+): string[] | void {
   const topSongs = [];
 
   const options = {
@@ -156,7 +174,7 @@ function getFavoriteSnippets(access_token, basic_authorization) {
       'Content-Type': 'application/json',
     },
     muteHttpExceptions: true, // 401エラーへの対応
-  };
+  } as const;
   const response = UrlFetchApp.fetch(
     'https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=50&offset=0',
     options
@@ -164,10 +182,10 @@ function getFavoriteSnippets(access_token, basic_authorization) {
 
   switch (response.getResponseCode()) {
     case 200:
-      const parsedResponse = JSON.parse(response);
+      const parsedResponse = JSON.parse(response.toString());
       console.log('曲を取得');
-      const songMap = new Map(
-        parsedResponse.items.map(song => {
+      const songMap = new Map<string, string>(
+        parsedResponse.items.map((song: any) => {
           return [song.name, song.artists[0].name];
         })
       );
@@ -185,9 +203,10 @@ function getFavoriteSnippets(access_token, basic_authorization) {
   }
 }
 // musixmatch API
-const apikey = '';
+const apikey =
+  PropertiesService.getScriptProperties().getProperty('MUSIXMATCH_API_KEY')!;
 // track_idを取得 (from musixmatch)
-function getSnippetsArr(map) {
+function getSnippetsArr(map: Map<string, string>): string[] {
   let snippetsArr = [];
   const baseUrl = `https://api.musixmatch.com/ws/1.1/track.search?apikey=${apikey}`;
   const options = {
@@ -200,7 +219,7 @@ function getSnippetsArr(map) {
       console.log('musixmatch API(track search)更新失敗');
       break;
     }
-    const parsedResponse = JSON.parse(response);
+    const parsedResponse = JSON.parse(response.toString());
     if (typeof parsedResponse.message.body.track_list[0] !== 'undefined') {
       const snippet = getSnipets(
         parsedResponse.message.body.track_list[0].track.track_id
@@ -214,11 +233,11 @@ function getSnippetsArr(map) {
 }
 
 // snipetsを取得
-function getSnipets(track_id) {
+function getSnipets(track_id: string): string {
   const url = `https://api.musixmatch.com/ws/1.1/track.snippet.get?apikey=${apikey}&track_id=${track_id}`;
   const response = UrlFetchApp.fetch(url);
   if (response.getResponseCode() === 200) {
-    const parsedResponse = JSON.parse(response);
+    const parsedResponse = JSON.parse(response.toString());
     return parsedResponse.message.body.snippet.snippet_body;
   } else {
     console.log('musixmatch API(get snippet)更新失敗');
@@ -227,9 +246,9 @@ function getSnipets(track_id) {
 }
 
 // sanitize words
-function sanitizeSensitiveWords(word) {
+function sanitizeSensitiveWords(word: string): string {
   const sanitizeMap = new Map(Object.entries(sensitiveWordsMappingList));
-  for ([before, after] of sanitizeMap.entries()) {
+  for (let [before, after] of sanitizeMap.entries()) {
     let reg = new RegExp('(' + before + ')', 'gi');
     if (reg.test(word)) {
       console.log('sanitize実行!');
@@ -239,3 +258,5 @@ function sanitizeSensitiveWords(word) {
   console.log('sanitize不要');
   return word;
 }
+declare let global: any;
+global.sendTopSongsSnipetToTwitter = sendTopSongsSnipetToTwitter;
