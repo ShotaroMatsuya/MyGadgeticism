@@ -47,3 +47,9 @@ npm run build
 npx clasp push
 npx clasp deploy
 ```
+
+## 既存プロジェクトの取り込み
+
+```bash
+clasp clone [project id]
+```
