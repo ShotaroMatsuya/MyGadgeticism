@@ -1,9 +1,14 @@
-// init twitter API
+const twitter_api_key =
+  PropertiesService.getScriptProperties().getProperty('TWITTER_API_KEY');
+const twitter_secret_key =
+  PropertiesService.getScriptProperties().getProperty('TWITTER_SECRET_KEY');
 
+// init twitter API
+// @ts-ignore
 const twitter = TwitterWebService.getInstance(
-  '', //twitter API Key
-  '' //twitter API Secret Key
-);
+  twitter_api_key, //API Key
+  twitter_secret_key // API Secret Key
+)!;
 
 // アプリを連携認証
 function authorize() {
@@ -15,11 +20,11 @@ function reset() {
   twitter.reset();
 }
 
-function authCallback(request) {
+function authCallback(request: any) {
   return twitter.authCallback(request);
 }
 
-function postTweet(mes) {
+function postTweet(mes: string) {
   const service = twitter.getService();
   const endPointUrl = 'https://api.twitter.com/1.1/statuses/update.json';
   const response = service.fetch(endPointUrl, {
@@ -32,12 +37,19 @@ function postTweet(mes) {
 
 //init spotify API
 
-function sendTopGenreToTwitter() {
+export function sendTopGenreToTwitter() {
   // ******************
   // ここから下を個別に設定 (spotify api credentials)
-  const client_id = '';
-  const client_secret = '';
-  const authorization_code = '';
+  const client_id = PropertiesService.getScriptProperties().getProperty(
+    'SPOTIFY_API_CLIENT_ID'
+  )!;
+  const client_secret = PropertiesService.getScriptProperties().getProperty(
+    'SPOTIFY_API_CLIENT_SECRET'
+  )!;
+  const authorization_code =
+    PropertiesService.getScriptProperties().getProperty(
+      'SPOTIFY_API_AUTHORIZATION_CODE'
+    )!;
   const basic_authorization = Utilities.base64Encode(
     client_id + ':' + client_secret
   ); // 変更不要
@@ -72,7 +84,10 @@ function sendTopGenreToTwitter() {
   }
 }
 
-function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
+function getFirstAccessTokenToSpotify(
+  authorization_code: string,
+  basic_authorization: string
+) {
   const headers = { Authorization: 'Basic ' + basic_authorization };
   const payload = {
     grant_type: 'authorization_code',
@@ -88,7 +103,7 @@ function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
     options
   );
 
-  const parsedResponse = JSON.parse(response);
+  const parsedResponse = JSON.parse(response.toString());
   const scriptProperties = PropertiesService.getScriptProperties();
   scriptProperties.setProperties({
     access_token: parsedResponse.access_token,
@@ -97,7 +112,7 @@ function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
   return parsedResponse.access_token;
 }
 
-function refreshAccessTokenToSpotify(basic_authorization) {
+function refreshAccessTokenToSpotify(basic_authorization: string) {
   const scriptProperties = PropertiesService.getScriptProperties();
   const refresh_token = scriptProperties.getProperty('refresh_token');
 
@@ -118,7 +133,7 @@ function refreshAccessTokenToSpotify(basic_authorization) {
     options
   );
 
-  const parsedResponse = JSON.parse(response);
+  const parsedResponse = JSON.parse(response.toString());
   scriptProperties.setProperty('access_token', parsedResponse.access_token);
   // refresh_tokenは毎回発行されるとは限らない
   if (parsedResponse.refresh_token) {
@@ -127,7 +142,10 @@ function refreshAccessTokenToSpotify(basic_authorization) {
   return parsedResponse.access_token;
 }
 // 再生数上位3曲のアーティストのGenreを取得
-function getTopArtists(access_token, basic_authorization) {
+function getTopArtists(
+  access_token: string,
+  basic_authorization: string
+): [string, number][] | void {
   const artistIds = [];
   const topSongs = [];
   const options = {
@@ -138,7 +156,7 @@ function getTopArtists(access_token, basic_authorization) {
       'Content-Type': 'application/json',
     },
     muteHttpExceptions: true, // 401エラーへの対応
-  };
+  } as const;
   const response = UrlFetchApp.fetch(
     'https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=50&offset=0',
     options
@@ -146,7 +164,7 @@ function getTopArtists(access_token, basic_authorization) {
 
   switch (response.getResponseCode()) {
     case 200:
-      const parsedResponse = JSON.parse(response);
+      const parsedResponse = JSON.parse(response.toString());
       console.log('アーティストを取得');
       for (let i = 0; i < 50; i++) {
         for (let j = 0; j < parsedResponse.items[i].artists.length; j++) {
@@ -166,7 +184,11 @@ function getTopArtists(access_token, basic_authorization) {
   }
 }
 
-function getTopGenres(artists, access_token, basic_authorization) {
+function getTopGenres(
+  artists: number[],
+  access_token: string,
+  basic_authorization: string
+): [string, number][] | void {
   const options = {
     method: 'get',
     headers: {
@@ -175,8 +197,8 @@ function getTopGenres(artists, access_token, basic_authorization) {
       'Content-Type': 'application/json',
     },
     muteHttpExceptions: true, // 401エラーへの対応
-  };
-  let genresArr = [];
+  } as const;
+  let genresArr: string[] = [];
   artists.forEach(artist => {
     const response = UrlFetchApp.fetch(
       'https://api.spotify.com/v1/artists/' + artist,
@@ -184,9 +206,9 @@ function getTopGenres(artists, access_token, basic_authorization) {
     );
     switch (response.getResponseCode()) {
       case 200:
-        const parsedResponse = JSON.parse(response);
+        const parsedResponse = JSON.parse(response.toString());
         console.log('Genreを取得');
-        parsedResponse.genres.forEach(genre => {
+        parsedResponse.genres.forEach((genre: string) => {
           genresArr.push(genre);
         });
         return genresArr;
@@ -206,19 +228,17 @@ function getTopGenres(artists, access_token, basic_authorization) {
   genresArr = genresArr.filter(v => {
     return !v.match(/pop/g); //popという文字列を部分一致で除外する
   });
-  //  genresArr = genresArr.filter(v => {
-  //    if(v.match(/pop/g) || v.match(/house/g)){
-  //      return false;
-  //    }
-  //    return true;
-  //  });
   console.log(genresArr);
-  genresArr = arrayDuplicateCount(genresArr);
-  return genresArr;
+  const sortedGenreArr = arrayDuplicateCount(genresArr);
+  return sortedGenreArr;
 }
-//
-function arrayDuplicateCount(resultsArr) {
-  let counts = resultsArr.reduce((prev, current) => {
+
+interface Count {
+  [key: string]: number;
+}
+
+function arrayDuplicateCount(resultsArr: string[]): [string, number][] {
+  let counts: Count = resultsArr.reduce((prev: any, current: string) => {
     prev[current] = (prev[current] || 0) + 1;
     return prev;
   }, {});
@@ -238,11 +258,9 @@ function arrayDuplicateCount(resultsArr) {
         return 1;
       }
     });
-  //  counts = Object.fromEntries(pairs); // {pop: 4,'uk pop': 4,'talent show': 2,'dance pop': 2,'post-teen pop': 2}
+
   return pairs;
 }
 
-//function sortedArrayToUnique(resultsArr){
-//  let sortedArr = Array.from(new Set(resultsArr)).sort();
-//  console.log(sortedArr);
-//}
+declare let global: any;
+global.sendTopGenreToTwitter = sendTopGenreToTwitter;
