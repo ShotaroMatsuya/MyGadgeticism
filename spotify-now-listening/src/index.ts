@@ -1,10 +1,18 @@
-function setSlackStatusFromSpotifyApp() {
+export function setSlackStatusFromSpotifyApp() {
   // ******************
-  // ここから下を個別に設定 (spotify credentials)
-  const client_id = '';
-  const client_secret = '';
-  const slack_user_id = ''; // userのidをapiから取得
-  const authorization_code = '';
+  // ここから下を個別に設定
+  const client_id = PropertiesService.getScriptProperties().getProperty(
+    'SPOTIFY_API_CLIENT_ID'
+  )!;
+  const client_secret = PropertiesService.getScriptProperties().getProperty(
+    'SPOTIFY_API_CLIENT_SECRET'
+  )!;
+  const authorization_code =
+    PropertiesService.getScriptProperties().getProperty(
+      'SPOTIFY_API_AUTHORIZATION_CODE'
+    )!;
+  const slack_user_id =
+    PropertiesService.getScriptProperties().getProperty('SLACK_USER_ID')!;
   const basic_authorization = Utilities.base64Encode(
     client_id + ':' + client_secret
   ); // 変更不要
@@ -27,15 +35,17 @@ function setSlackStatusFromSpotifyApp() {
       setSlackStatus(slack_user_id, '', '');
       console.log('何も聞いていない');
       break;
-    default:
-      // now listening
+    default: // now listening
       setSlackStatus(slack_user_id, now_playing, '');
       console.log('now listening');
       break;
   }
 }
 
-function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
+function getFirstAccessTokenToSpotify(
+  authorization_code: string,
+  basic_authorization: string
+) {
   const headers = { Authorization: 'Basic ' + basic_authorization };
   const payload = {
     grant_type: 'authorization_code',
@@ -51,7 +61,7 @@ function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
     options
   );
 
-  const parsedResponse = JSON.parse(response);
+  const parsedResponse = JSON.parse(response.toString());
   const scriptProperties = PropertiesService.getScriptProperties();
   scriptProperties.setProperties({
     access_token: parsedResponse.access_token,
@@ -60,7 +70,7 @@ function getFirstAccessTokenToSpotify(authorization_code, basic_authorization) {
   return parsedResponse.access_token;
 }
 
-function refreshAccessTokenToSpotify(basic_authorization) {
+function refreshAccessTokenToSpotify(basic_authorization: string) {
   const scriptProperties = PropertiesService.getScriptProperties();
   const refresh_token = scriptProperties.getProperty('refresh_token');
 
@@ -81,7 +91,7 @@ function refreshAccessTokenToSpotify(basic_authorization) {
     options
   );
 
-  const parsedResponse = JSON.parse(response);
+  const parsedResponse = JSON.parse(response.toString());
   scriptProperties.setProperty('access_token', parsedResponse.access_token);
   // refresh_token は毎回発行されるとは限らない
   if (parsedResponse.refresh_token) {
@@ -90,7 +100,10 @@ function refreshAccessTokenToSpotify(basic_authorization) {
   return parsedResponse.access_token;
 }
 
-function getNowPlaying(access_token, basic_authorization) {
+function getNowPlaying(
+  access_token: string,
+  basic_authorization: string
+): string | null {
   const options = {
     headers: { Authorization: 'Bearer ' + access_token },
     muteHttpExceptions: true, // 401エラーへの対応のため
@@ -116,15 +129,23 @@ function getNowPlaying(access_token, basic_authorization) {
     default:
       // 実行されない想定
       console.log('実行されない想定');
+      return null;
   }
 }
 
-function setSlackStatus(slack_user_id, status_text, status_emoji) {
+function setSlackStatus(
+  slack_user_id: string,
+  status_text: string,
+  status_emoji: string
+): void {
   const data = {
     profile: { status_text: status_text, status_emoji: status_emoji },
   };
   const payload = JSON.stringify(data);
-  const token = ''; //slack api token
+  const token = PropertiesService.getScriptProperties().getProperty(
+    'SLACK_AUTHORIZATION_TOKEN'
+  )!;
+
   const options = {
     method: 'post',
     payload: payload,
@@ -132,7 +153,7 @@ function setSlackStatus(slack_user_id, status_text, status_emoji) {
       Authorization: 'Bearer ' + token,
       'Content-type': 'application/json',
     },
-  };
+  } as const;
   const res = UrlFetchApp.fetch(
     'https://slack.com/api/users.profile.set?user=' + slack_user_id,
     options
@@ -140,9 +161,12 @@ function setSlackStatus(slack_user_id, status_text, status_emoji) {
   console.log(payload);
 }
 
-function getArtistAndSongString(response) {
+function getArtistAndSongString(response: any): string {
   const parsedResponse = JSON.parse(response);
   const artist = parsedResponse.item.album.artists[0].name;
   const song = parsedResponse.item.album.name;
   return artist + '/' + song;
 }
+
+declare let global: any;
+global.setSlackStatusFromSpotifyApp = setSlackStatusFromSpotifyApp;
